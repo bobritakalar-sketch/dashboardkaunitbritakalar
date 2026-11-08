@@ -64,6 +64,23 @@ tr.rise{animation:rise .7s cubic-bezier(.22,1,.36,1) both}
 .spin{transform-box:fill-box;transform-origin:center;animation:sp 9s linear infinite}.spin2{animation-direction:reverse}@keyframes sp{to{transform:rotate(360deg)}}
 .star{animation:star 2s ease-in-out infinite}@keyframes star{50%{opacity:.15}}
 @media(max-width:820px){#auth{grid-template-columns:1fr;grid-auto-rows:min-content}.av-l{padding:14px 10px 0}.av-l svg{max-width:440px}.av-r{padding-top:12px}}
+
+header{position:relative;overflow:hidden;background-size:220% 220%;animation:hg 14s ease-in-out infinite}@keyframes hg{50%{background-position:100% 50%}}
+header .w{position:relative;z-index:2}
+.fx{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.fx i{position:absolute;bottom:-40px;border-radius:50%;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);animation:fl linear infinite}
+@keyframes fl{from{transform:translateY(0) scale(.6);opacity:0}15%{opacity:1}to{transform:translateY(-280px) scale(1.15);opacity:0}}
+h1 span{background:linear-gradient(90deg,#ffb86b,#fff1d6,#ffb86b);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:sh 4s linear infinite}@keyframes sh{to{background-position:-200% 0}}
+.logo{animation:bob 3s ease-in-out infinite;transition:scale .3s}.logo:hover{scale:1.12}
+nav button{transition:background .25s,color .25s,translate .25s}nav button:hover:not(.on){background:rgba(255,255,255,.16);color:#fff;translate:0 -3px}
+.card{transition:translate .25s,box-shadow .25s}.card:hover{translate:0 -4px;box-shadow:0 14px 30px rgba(0,40,90,.16)}
+.pod{padding-top:26px}.pd{transition:scale .25s,box-shadow .25s}.pd:hover{scale:1.05;box-shadow:0 16px 34px rgba(0,0,0,.3)}
+.p1{position:relative;animation:up .6s both,gl 2.6s ease-in-out infinite}@keyframes gl{50%{box-shadow:0 0 34px rgba(245,158,11,.75)}}
+.p1::before{content:"👑";position:absolute;top:-26px;left:50%;margin-left:-16px;font-size:30px;animation:bob 2s ease-in-out infinite}
+.btn{transition:filter .2s,translate .15s,scale .15s}.btn:hover{filter:brightness(1.12);translate:0 -2px}.btn:active{scale:.95}
+.rk{transition:scale .2s}tr.row:hover .rk{scale:1.2}
+.cf{position:fixed;top:-14px;width:8px;height:12px;z-index:95;pointer-events:none;animation:cfa linear forwards}@keyframes cfa{to{transform:translateY(108vh) rotate(720deg)}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -108,7 +125,7 @@ function makeDb(sb){
  const watch=(t,run)=>{(subs[t]=subs[t]||new Set()).add(run);run();const ch=sb.channel("rt-"+t+Math.random().toString(36).slice(2)).on("postgres_changes",{event:"*",schema:"public",table:TB(t)},run).subscribe();return()=>{subs[t].delete(run);sb.removeChannel(ch)}};
  const ref=(t,id)=>({set:d=>wr(t,sb.from(TB(t)).upsert({id,...d})),update:d=>wr(t,sb.from(TB(t)).update(d).eq("id",id)),delete:()=>wr(t,sb.from(TB(t)).delete().eq("id",id)),onSnapshot:cb=>watch(t,async()=>{const{data}=await sb.from(TB(t)).select("*").eq("id",id).maybeSingle();cb({exists:!!data,data:()=>data})})});
  return{doc:p=>{const[t,id]=p.split("/");return ref(t,id)},collection:t=>({doc:id=>ref(t,id),add:d=>wr(t,sb.from(TB(t)).insert({id:crypto.randomUUID(),...d})),onSnapshot:cb=>watch(t,async()=>{const{data}=await sb.from(TB(t)).select("*");cb({docs:(data||[]).map(r=>({id:r.id,data:()=>r}))})})})}}
-async function upMedia(f){const ext=(f.name.split(".").pop()||"bin").toLowerCase().replace(/[^a-z0-9]/g,""),path=Date.now()+"-"+Math.random().toString(36).slice(2,8)+"."+ext,{error}=await sb.storage.from("kaunit-media").upload(path,f,{contentType:f.type});if(error)throw error;return{url:sb.storage.from("kaunit-media").getPublicUrl(path).data.publicUrl,type:f.type}}
+async function upMedia(f){if(f.size>104857600)throw new Error("Ukuran file melebihi 100 MB.");const ext=(f.name.split(".").pop()||"bin").toLowerCase().replace(/[^a-z0-9]/g,""),path=Date.now()+"-"+Math.random().toString(36).slice(2,8)+"."+ext,{error}=await sb.storage.from("kaunit-media").upload(path,f,{contentType:f.type});if(error)throw error;return{url:sb.storage.from("kaunit-media").getPublicUrl(path).data.publicUrl,type:f.type}}
 async function loadVis(){const{data}=await sb.from("kaunit_visitors").select("email").order("email");S.vis=(data||[]).map(r=>r.email);if(S.page===3)render()}
 async function addVis(e){e=e.trim().toLowerCase();if(!e.includes("@")){S.vmsg="Email tidak valid.";render();return}const{error}=await sb.from("kaunit_visitors").upsert({email:e});S.vmsg=error?error.message:"✔ "+e+" ditambahkan";await loadVis()}
 async function delVis(e){await sb.from("kaunit_visitors").delete().eq("email",e);S.vmsg="";await loadVis()}
@@ -119,6 +136,7 @@ const BGM=(()=>{const a=$("#bgm"),b=$("#bgmb");let off=false;try{off=localStorag
  const wait=()=>{const f=()=>{removeEventListener("pointerdown",f);removeEventListener("keydown",f);if(!off&&a.paused)a.play().catch(()=>{})};addEventListener("pointerdown",f);addEventListener("keydown",f)};
  b.onclick=()=>{off=!off;try{localStorage.setItem("bgm_off",off?"1":"0")}catch(e){}if(off)a.pause();else a.play().catch(()=>{});ui()};
  return{play(){if(off||!a.paused)return;if(fresh&&a.readyState>=1)seek();fresh=false;const r=a.play();if(r&&r.catch)r.catch(wait)},stop(){a.pause();fresh=true;seek()},show(v){b.style.display=v?"block":"none"}}})();
+async function doOut(){try{BGM.stop()}catch(e){}try{await sb.auth.signOut({scope:"local"})}catch(e){}try{Object.keys(localStorage).filter(k=>k.startsWith("sb-")).forEach(k=>localStorage.removeItem(k))}catch(e){}try{await gate(null)}catch(e){console.error(e)}}
 function authMsg(t){S.amsg=t;const e=$("#lmsg");if(e)e.textContent=t}
 function showAuth(m,t){S.am=m;S.amsg=t||"";$("#auth").classList.remove("off");drawAuth()}
 function hideAuth(){$("#auth").classList.add("off")}
@@ -132,7 +150,7 @@ function drawAuth(){const m=S.am,c=$("#lc"),h='<img src="'+LOGO+'" alt="BRI" sty
    const{error}=await sb.auth.signInWithPassword({email,password});if(error){BGM.stop();authMsg(error.message==="Invalid login credentials"?"Email atau password salah.":error.message)}};
   $("#lsp").onchange=e=>{$("#lp").type=e.target.checked?"text":"password"};
   $("#lgo").onclick=go;c.querySelectorAll("input").forEach(i=>i.onkeydown=e=>{if(e.key==="Enter")go()})}
- const ao=$("#aout");if(ao)ao.onclick=()=>sb.auth.signOut()}
+ const ao=$("#aout");if(ao)ao.onclick=doOut}
 function startData(){S.rows=[];S.news=[];S.foto={};S.unsubs=[
  S.db.collection("kinerja").onSnapshot(s=>{S.rows=s.docs.map(d=>({id:d.id,...d.data()}));render()}),
  S.db.collection("berita").onSnapshot(s=>{S.news=s.docs.map(d=>({id:d.id,...d.data()}));render()}),
@@ -153,7 +171,7 @@ async function gate(session){
 async function init(){render();
  if(!CFG.url||String(CFG.url).startsWith("ISI")||!window.supabase){showAuth("setup");return}
  sb=supabase.createClient(CFG.url,CFG.key);S.db=makeDb(sb);S.live=true;
- $("#lo").onclick=()=>sb.auth.signOut();
+ $("#lo").onclick=doOut;
  const{data:{session}}=await sb.auth.getSession();await gate(session);
  sb.auth.onAuthStateChange((ev,s)=>{if(ev==="TOKEN_REFRESHED")return;setTimeout(()=>gate(s),0)})}
 (function(){const C=["#f58220","#16a34a","#a855f7","#e11d48","#0ea5e9","#facc15"],T=["Dana","Tabungan","QRIS","Agen","Laba","Mantri"],sc=$("#scene");
@@ -268,12 +286,21 @@ function bind(){const m=$("#m"),tg=id=>{const i=S.sel.indexOf(id);if(i>=0){if(S.
  if(qs)qs.onclick=async()=>{const r=parseQ($("#qp").value);if(!r.ok.length){$("#qpm").textContent="Tidak ada data valid.";return}try{for(const x of r.ok)await putRow({p:per(),...x});$("#qpm").textContent="✔ "+r.ok.length+" data tersimpan"}catch(e){$("#qpm").textContent="Gagal: "+(e.message||e.code)}};
  m.querySelectorAll("[data-ph]").forEach(i=>i.onchange=()=>setFoto(i.dataset.ph,i.files[0]));
  m.querySelectorAll("[data-df]").forEach(b=>b.onclick=async()=>{const id=slug(b.dataset.df);if(S.db)await S.db.collection("foto").doc(id).delete();else{delete S.foto[id];saveLocal();render()}});
- m.querySelectorAll("[data-nm]").forEach(i=>i.onchange=async()=>{const f=i.files[0];if(!f)return;try{const media=await upMedia(f);if(S.db)await S.db.collection("berita").doc(i.dataset.nm).update({media});else{const n=S.news.find(x=>x.id===i.dataset.nm);if(n)n.media=media;saveLocal();render()}}catch(e){alert("Media gagal diunggah (maks. 20 MB, hanya editor).")}});
+ m.querySelectorAll("[data-nm]").forEach(i=>i.onchange=async()=>{const f=i.files[0];if(!f)return;try{const media=await upMedia(f);if(S.db)await S.db.collection("berita").doc(i.dataset.nm).update({media});else{const n=S.news.find(x=>x.id===i.dataset.nm);if(n)n.media=media;saveLocal();render()}}catch(e){alert("Media gagal diunggah: "+(e.message||e)+" (maks. 100 MB, hanya editor).")}});
  m.querySelectorAll("[data-ly]").forEach(b=>b.onclick=async()=>{const k=b.dataset.ly;if(S.admin&&S.db){try{await S.db.doc("pengaturan/umum").set({layout:k});S.layout=null}catch(e){S.layout=k}}else S.layout=k;render()});
  m.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>delRow(b.dataset.del));
  m.querySelectorAll("[data-dn]").forEach(b=>b.onclick=()=>delNews(b.dataset.dn));
  const sn=$("#sn");if(sn)sn.onclick=async()=>{const judul=$("#nj").value.trim();if(!judul)return;const f=$("#nf").files[0],nm=$("#nm");let media=null;
-  if(f){nm.textContent="Mengunggah…";try{media=await upMedia(f)}catch(e){alert("Media gagal diunggah (maks. 20 MB, hanya editor). Berita diterbitkan tanpa media.")}}
+  if(f){nm.textContent="Mengunggah…";try{media=await upMedia(f)}catch(e){alert("Media gagal diunggah: "+(e.message||e)+" (maks. 100 MB, hanya editor). Berita diterbitkan tanpa media.")}}
   const n={p:per(),kat:$("#nk").value,judul,kaunit:$("#nu").value.trim(),isi:$("#ni").value.trim()};if(media)n.media=media;await putNews(n)}}
 init();
-</script></body></html>
+</script><script>
+(function(){const hd=document.querySelector("header"),f=document.createElement("div");f.className="fx";
+ for(let i=0;i<18;i++){const e=document.createElement("i"),z=8+Math.random()*28;e.style.cssText=`left:${Math.random()*100}%;width:${z}px;height:${z}px;animation-duration:${7+Math.random()*9}s;animation-delay:${-Math.random()*12}s`;f.append(e)}hd.prepend(f);
+ function confetti(){const C=["#f58220","#16a34a","#a855f7","#e11d48","#0ea5e9","#facc15"];for(let i=0;i<40;i++){const e=document.createElement("i");e.className="cf";e.style.cssText=`left:${Math.random()*100}vw;background:${C[i%6]};border-radius:${i%3?"2px":"50%"};animation-duration:${2+Math.random()*2.5}s;animation-delay:${Math.random()*.6}s`;document.body.append(e);setTimeout(()=>e.remove(),5500)}}
+ let seen="";const _r=render;
+ render=function(){_r();try{if(S.page!==2){seen="";return}const k=per(),ns=document.querySelectorAll(".pd .n");if(!ns.length||seen===k)return;seen=k;
+  ns.forEach(el=>{const t=el.textContent,v=parseFloat(t.replace(/\./g,"").replace(",","."));if(!isFinite(v))return;const st=performance.now();(function a(n){const p=Math.min((n-st)/1200,1);el.textContent=p<1?fmt(v*(1-Math.pow(1-p,3))):t;if(p<1)requestAnimationFrame(a)})(st)});confetti()}catch(e){}}
+})();
+</script>
+</body></html>
