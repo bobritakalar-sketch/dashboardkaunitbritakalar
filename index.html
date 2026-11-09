@@ -81,6 +81,11 @@ nav button{transition:background .25s,color .25s,translate .25s}nav button:hover
 .rk{transition:scale .2s}tr.row:hover .rk{scale:1.2}
 .cf{position:fixed;top:-14px;width:8px;height:12px;z-index:95;pointer-events:none;animation:cfa linear forwards}@keyframes cfa{to{transform:translateY(108vh) rotate(720deg)}}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+.ph{position:relative;overflow:hidden;border-radius:12px;aspect-ratio:16/10;background:rgba(0,0,0,.08)}
+.ph img{display:block;width:100%;height:100%;max-height:none!important;object-fit:cover;margin:0!important;border-radius:0!important}
+.ph.a{outline:2px dashed var(--o);cursor:grab;touch-action:none;user-select:none}
+.ph.a::after{content:"✋ geser foto";position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:2px 10px;border-radius:99px;pointer-events:none}
+.zr{display:flex;align-items:center;gap:8px;margin-top:8px}.zr input{flex:1}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -215,9 +220,11 @@ function av(n,z=28){const s=S.foto[slug(n||"")],st=`width:${z}px;height:${z}px`;
 function resize(f){return new Promise((ok,no)=>{const r=new FileReader();r.onerror=no;r.onload=()=>{const im=new Image();im.onerror=no;im.onload=()=>{const c=document.createElement("canvas"),z=240;c.width=c.height=z;const s=Math.min(im.width,im.height);c.getContext("2d").drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,z,z);ok(c.toDataURL("image/jpeg",.82))};im.src=r.result};r.readAsDataURL(f)})}
 async function setFoto(nama,f){if(!f)return;try{const img=await resize(f),id=slug(nama);if(S.db)await S.db.collection("foto").doc(id).set({nama,img});else{S.foto[id]=img;saveLocal();render()}}catch(e){alert("Foto gagal disimpan: "+(e.message||e.code||"format tidak didukung"))}}
 const LYS=[["grid1","▦ Grid"],["list1","☰ Daftar"],["spot","★ Sorotan"],["mos","▥ Mosaik"]],LY=()=>S.layout||S.dl||"grid1",LYB=()=>LYS.map(([k,t])=>`<button class="chip ${k===LY()?"on":""}" data-ly="${k}">${t}</button>`).join("");
-function media(n){if(!n.media)return"";const u=esc(n.media.url||"");return String(n.media.type).startsWith("video")?`<video src="${u}" controls playsinline style="width:100%;border-radius:12px;margin-top:10px"></video>`:`<img src="${u}" alt="" style="width:100%;border-radius:12px;margin-top:10px">`}
+function media(n){if(!n.media)return"";const m=n.media,u=esc(m.url||"");if(String(m.type).startsWith("video"))return`<video src="${u}" controls playsinline style="width:100%;border-radius:12px;margin-top:10px"></video>`;
+ const pos=esc(m.pos||"50% 50%"),z=+m.zoom||1,a=S.admin&&S.arr;
+ return`<div class="ph${a?" a":""}"><img src="${u}" alt="" draggable="false" data-ph="${n.id}" data-pos="${pos}" style="object-position:${pos};transform-origin:${pos};transform:scale(${z})"></div>`+(a?`<div class="zr"><span>🔍</span><input type="range" min="100" max="300" value="${Math.round(z*100)}" data-zm="${n.id}"><button class="chip" data-rz="${n.id}">↺ Reset</button></div>`:"")}
 function pNews(){const L=S.news.filter(n=>n.p===per()),cats=["Semua",...new Set(L.map(n=>n.kat))],v=L.filter(n=>S.cat==="Semua"||n.kat===S.cat);
- return`<div class="chips">${cats.map(c=>`<button class="chip ${c===S.cat?"on":""}" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}<span style="flex:1"></span>${LYB()}</div>`+
+ return`<div class="chips">${cats.map(c=>`<button class="chip ${c===S.cat?"on":""}" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}<span style="flex:1"></span>${S.admin?`<button class="chip ${S.arr?"on":""}" data-arr="1">🖐 Atur Foto</button>`:""}${LYB()}</div>`+
  (v.length?`<div class="nl ${LY()}">${v.map((n,i)=>`<div class="card news" style="animation-delay:${i*70}ms"><div class="nt"><span class="tag">${esc(n.kat)}</span><h2 style="margin-top:8px">${esc(n.judul)}</h2><div class="mut" style="margin-bottom:6px">${esc(n.kaunit?"👤 "+n.kaunit+" · ":"")}${BLN[mo.value-1]} ${yr.value}</div><div>${esc(n.isi)}</div></div>${n.media?`<div class="mw">${media(n)}</div>`:""}</div>`).join("")}</div>`:`<div class="card empty">Belum ada berita pencapaian untuk ${BLN[mo.value-1]} ${yr.value}.${S.admin?" Tambahkan di halaman Input Data.":""}</div>`)}
 function pRank(){const R=rowsP();if(!R.length)return`<div class="card empty">Belum ada data kinerja untuk ${BLN[mo.value-1]} ${yr.value}.</div>`;
  S.sel=S.sel.filter(id=>R.some(r=>r.id===id));if(!S.sel.length)S.sel=R.slice(0,2).map(r=>r.id);
@@ -301,6 +308,23 @@ init();
  let seen="";const _r=render;
  render=function(){_r();try{if(S.page!==2){seen="";return}const k=per(),ns=document.querySelectorAll(".pd .n");if(!ns.length||seen===k)return;seen=k;
   ns.forEach(el=>{const t=el.textContent,v=parseFloat(t.replace(/\./g,"").replace(",","."));if(!isFinite(v))return;const st=performance.now();(function a(n){const p=Math.min((n-st)/1200,1);el.textContent=p<1?fmt(v*(1-Math.pow(1-p,3))):t;if(p<1)requestAnimationFrame(a)})(st)});confetti()}catch(e){}}
+})();
+</script>
+<script>
+(function(){
+ async function saveMed(id,patch){const n=S.news.find(x=>x.id===id);if(!n||!S.admin)return;const media={...n.media,...patch};n.media=media;
+  try{if(S.db)await S.db.collection("berita").doc(id).update({media});else{saveLocal();render()}}catch(e){alert("Gagal menyimpan layout foto: "+(e.message||e))}}
+ let dr=null;
+ document.addEventListener("pointerdown",e=>{const p=e.target.closest(".ph.a");if(!p||!S.admin)return;const im=p.querySelector("img");
+  dr={p,im,id:im.dataset.ph,x:e.clientX,y:e.clientY,w:p.clientWidth,h:p.clientHeight,o:im.dataset.pos.split(" ").map(parseFloat)};
+  try{p.setPointerCapture(e.pointerId)}catch(x){}p.style.cursor="grabbing";e.preventDefault()});
+ document.addEventListener("pointermove",e=>{if(!dr)return;const c=v=>Math.max(0,Math.min(100,v)),x=c(dr.o[0]-(e.clientX-dr.x)/dr.w*100),y=c(dr.o[1]-(e.clientY-dr.y)/dr.h*100);
+  dr.pos=x.toFixed(1)+"% "+y.toFixed(1)+"%";dr.im.style.objectPosition=dr.im.style.transformOrigin=dr.pos});
+ document.addEventListener("pointerup",()=>{if(!dr)return;const d=dr;dr=null;d.p.style.cursor="";if(d.pos){d.im.dataset.pos=d.pos;saveMed(d.id,{pos:d.pos})}});
+ document.addEventListener("input",e=>{const id=e.target.dataset&&e.target.dataset.zm;if(!id)return;const im=document.querySelector('img[data-ph="'+id+'"]');if(im)im.style.transform="scale("+e.target.value/100+")"});
+ document.addEventListener("change",e=>{const id=e.target.dataset&&e.target.dataset.zm;if(id)saveMed(id,{zoom:e.target.value/100})});
+ document.addEventListener("click",e=>{const a=e.target.closest("[data-arr]");if(a&&S.admin){S.arr=!S.arr;render();return}
+  const r=e.target.closest("[data-rz]");if(r){saveMed(r.dataset.rz,{pos:"50% 50%",zoom:1});if(S.db)setTimeout(render,0)}});
 })();
 </script>
 </body></html>
