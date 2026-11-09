@@ -86,6 +86,9 @@ nav button{transition:background .25s,color .25s,translate .25s}nav button:hover
 .ph.a{outline:2px dashed var(--o);cursor:grab;touch-action:none;user-select:none}
 .ph.a::after{content:"✋ geser foto";position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:2px 10px;border-radius:99px;pointer-events:none}
 .zr{display:flex;align-items:center;gap:8px;margin-top:8px}.zr input{flex:1}
+.news{position:relative}
+.dh{position:absolute;top:8px;left:8px;z-index:4;display:flex;gap:6px;align-items:center;background:rgba(0,0,0,.72);color:#fff;padding:4px 6px 4px 12px;border-radius:99px;font-size:12px;cursor:grab}
+.dh .chip{padding:0 9px;font-size:12px}.news.dg{opacity:.4}.news.ov{outline:3px dashed var(--o)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
@@ -223,9 +226,10 @@ const LYS=[["grid1","▦ Grid"],["list1","☰ Daftar"],["spot","★ Sorotan"],["
 function media(n){if(!n.media)return"";const m=n.media,u=esc(m.url||"");if(String(m.type).startsWith("video"))return`<video src="${u}" controls playsinline style="width:100%;border-radius:12px;margin-top:10px"></video>`;
  const pos=esc(m.pos||"50% 50%"),z=+m.zoom||1,a=S.admin&&S.arr;
  return`<div class="ph${a?" a":""}"><img src="${u}" alt="" draggable="false" data-ph="${n.id}" data-pos="${pos}" style="object-position:${pos};transform-origin:${pos};transform:scale(${z})"></div>`+(a?`<div class="zr"><span>🔍</span><input type="range" min="100" max="300" value="${Math.round(z*100)}" data-zm="${n.id}"><button class="chip" data-rz="${n.id}">↺ Reset</button></div>`:"")}
-function pNews(){const L=S.news.filter(n=>n.p===per()),cats=["Semua",...new Set(L.map(n=>n.kat))],v=L.filter(n=>S.cat==="Semua"||n.kat===S.cat);
- return`<div class="chips">${cats.map(c=>`<button class="chip ${c===S.cat?"on":""}" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}<span style="flex:1"></span>${S.admin?`<button class="chip ${S.arr?"on":""}" data-arr="1">🖐 Atur Foto</button>`:""}${LYB()}</div>`+
- (v.length?`<div class="nl ${LY()}">${v.map((n,i)=>`<div class="card news" style="animation-delay:${i*70}ms"><div class="nt"><span class="tag">${esc(n.kat)}</span><h2 style="margin-top:8px">${esc(n.judul)}</h2><div class="mut" style="margin-bottom:6px">${esc(n.kaunit?"👤 "+n.kaunit+" · ":"")}${BLN[mo.value-1]} ${yr.value}</div><div>${esc(n.isi)}</div></div>${n.media?`<div class="mw">${media(n)}</div>`:""}</div>`).join("")}</div>`:`<div class="card empty">Belum ada berita pencapaian untuk ${BLN[mo.value-1]} ${yr.value}.${S.admin?" Tambahkan di halaman Input Data.":""}</div>`)}
+const ORD=(a,b)=>(a.urut==null?1e9:a.urut)-(b.urut==null?1e9:b.urut);
+function pNews(){const L=S.news.filter(n=>n.p===per()).sort(ORD),cats=["Semua",...new Set(L.map(n=>n.kat))],v=L.filter(n=>S.cat==="Semua"||n.kat===S.cat);
+ return`<div class="chips">${cats.map(c=>`<button class="chip ${c===S.cat?"on":""}" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}<span style="flex:1"></span>${S.admin?`<button class="chip ${S.arr?"on":""}" data-arr="1">🖐 Atur Layout</button>`:""}${LYB()}</div>`+
+ (v.length?`<div class="nl ${LY()}">${v.map((n,i)=>`<div class="card news" data-nid="${n.id}" style="animation-delay:${i*70}ms">${S.admin&&S.arr?`<div class="dh" draggable="true" data-dh="${n.id}">⠿ Tarik untuk pindah <button class="chip" data-mv="${n.id}|-1">⬆</button><button class="chip" data-mv="${n.id}|1">⬇</button></div>`:""}<div class="nt"><span class="tag">${esc(n.kat)}</span><h2 style="margin-top:8px">${esc(n.judul)}</h2><div class="mut" style="margin-bottom:6px">${esc(n.kaunit?"👤 "+n.kaunit+" · ":"")}${BLN[mo.value-1]} ${yr.value}</div><div>${esc(n.isi)}</div></div>${n.media?`<div class="mw">${media(n)}</div>`:""}</div>`).join("")}</div>`:`<div class="card empty">Belum ada berita pencapaian untuk ${BLN[mo.value-1]} ${yr.value}.${S.admin?" Tambahkan di halaman Input Data.":""}</div>`)}
 function pRank(){const R=rowsP();if(!R.length)return`<div class="card empty">Belum ada data kinerja untuk ${BLN[mo.value-1]} ${yr.value}.</div>`;
  S.sel=S.sel.filter(id=>R.some(r=>r.id===id));if(!S.sel.length)S.sel=R.slice(0,2).map(r=>r.id);
  const sel=S.sel.map(id=>R.find(r=>r.id===id)),mxT=R[0].t||1;
@@ -325,6 +329,24 @@ init();
  document.addEventListener("change",e=>{const id=e.target.dataset&&e.target.dataset.zm;if(id)saveMed(id,{zoom:e.target.value/100})});
  document.addEventListener("click",e=>{const a=e.target.closest("[data-arr]");if(a&&S.admin){S.arr=!S.arr;render();return}
   const r=e.target.closest("[data-rz]");if(r){saveMed(r.dataset.rz,{pos:"50% 50%",zoom:1});if(S.db)setTimeout(render,0)}});
+})();
+</script>
+<script>
+(function(){
+ async function saveOrder(L){const ch=[];L.forEach((n,i)=>{if(n.urut!==i){n.urut=i;ch.push(n)}});render();
+  try{if(S.db)await Promise.all(ch.map(n=>S.db.collection("berita").doc(n.id).update({urut:n.urut})));else saveLocal()}
+  catch(e){alert("Gagal menyimpan urutan. Jalankan SQL ini di Supabase: alter table kaunit_berita add column if not exists urut integer;  ("+(e.message||e)+")")}}
+ const lst=()=>S.news.filter(n=>n.p===per()).sort(ORD);
+ function move(id,to){if(!S.admin)return;const L=lst(),a=L.findIndex(n=>n.id===id);if(a<0||to<0||to>=L.length||to===a)return;const[m]=L.splice(a,1);L.splice(to,0,m);saveOrder(L)}
+ let dg=null;
+ document.addEventListener("dragstart",e=>{const h=e.target.closest&&e.target.closest("[data-dh]");if(!h||!S.admin)return;dg=h.dataset.dh;const c=h.closest(".news");
+  e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",dg);e.dataTransfer.setDragImage(c,30,30)}catch(x){}c.classList.add("dg")});
+ document.addEventListener("dragover",e=>{if(!dg)return;const c=e.target.closest(".news");if(!c)return;e.preventDefault();
+  document.querySelectorAll(".news.ov").forEach(x=>x!==c&&x.classList.remove("ov"));c.classList.add("ov")});
+ document.addEventListener("drop",e=>{if(!dg)return;const c=e.target.closest(".news");e.preventDefault();const id=dg;dg=null;
+  if(c&&c.dataset.nid!==id){const t=lst().findIndex(n=>n.id===c.dataset.nid);move(id,t)}});
+ document.addEventListener("dragend",()=>{dg=null;document.querySelectorAll(".news.dg,.news.ov").forEach(x=>x.classList.remove("dg","ov"))});
+ document.addEventListener("click",e=>{const b=e.target.closest("[data-mv]");if(!b)return;const[id,d]=b.dataset.mv.split("|");const i=lst().findIndex(n=>n.id===id);move(id,i+ +d)});
 })();
 </script>
 </body></html>
